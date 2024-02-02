@@ -134,7 +134,7 @@ namespace WebSocketServer
                             visitasPorPiso[pisoActual].PersonasQueHanVisitado += personasEnAscensor;
 
                             // Envía una actualización de estado al cliente
-                            string response = $"El ascensor está en el piso {pisoActual} con {personasEnAscensor} personas.";
+                            string response = $"\u001b[36mEl ascensor está en el piso {pisoActual} con {personasEnAscensor} personas.\u001b[0m";
                             byte[] responseBuffer = Encoding.UTF8.GetBytes(response);
                             await webSocket.SendAsync(new ArraySegment<byte>(responseBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
@@ -145,7 +145,7 @@ namespace WebSocketServer
                     else
                     {
                         // Si el piso solicitado no es válido, envía un mensaje de error al cliente
-                        string errorMessage = "El piso especificado no es válido.";
+                        string errorMessage = "\u001b[31mEl piso especificado no es válido.\u001b[0m";
                         byte[] errorBuffer = Encoding.UTF8.GetBytes(errorMessage);
                         await webSocket.SendAsync(new ArraySegment<byte>(errorBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
                     }
