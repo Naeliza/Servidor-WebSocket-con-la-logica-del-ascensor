@@ -6,6 +6,7 @@ Este proyecto contiene un servidor WebSocket en C# que simula un ascensor y regi
 
 - [.NET Core SDK](https://dotnet.microsoft.com/download) instalado en tu sistema.
 - Paquete NuGet `EPPlus` para trabajar con archivos de Excel.
+- Instalar el paquete NuGet `System.Net.WebSockets` para la funcionalidad de WebSocket.
 
 ## Instalación de paquetes NuGet
 
@@ -13,6 +14,12 @@ Para instalar el paquete `EPPlus`, puedes utilizar el siguiente comando en la te
 
 ```bash
 dotnet add package EPPlus
+```
+
+Para instalar el paquete `WebSockets`, puedes utilizar el siguiente comando en la terminal:
+
+```bash
+dotnet add package System.Net.WebSockets
 ```
 
 ## Uso
