@@ -10,6 +10,7 @@ namespace WebSocketServer
     {
         static Dictionary<int, VisitaPiso> visitasPorPiso = new Dictionary<int, VisitaPiso>();
         static System.Timers.Timer timer;
+        static SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
         static async Task Main(string[] args)
         {
@@ -121,17 +122,25 @@ namespace WebSocketServer
                             }
 
                             // Registra la visita al piso actual
-                            if (!visitasPorPiso.ContainsKey(pisoActual))
+                            await semaphore.WaitAsync();
+                            try
                             {
-                                visitasPorPiso[pisoActual] = new VisitaPiso { Piso = pisoActual, CantidadDeVisitas = 1 };
-                            }
-                            else
-                            {
-                                visitasPorPiso[pisoActual].CantidadDeVisitas++;
-                            }
+                                if (!visitasPorPiso.ContainsKey(pisoActual))
+                                {
+                                    visitasPorPiso[pisoActual] = new VisitaPiso { Piso = pisoActual, CantidadDeVisitas = 1 };
+                                }
+                                else
+                                {
+                                    visitasPorPiso[pisoActual].CantidadDeVisitas++;
+                                }
 
-                            // Actualiza la cantidad de personas que han visitado el piso
-                            visitasPorPiso[pisoActual].PersonasQueHanVisitado += personasEnAscensor;
+                                // Actualiza la cantidad de personas que han visitado el piso
+                                visitasPorPiso[pisoActual].PersonasQueHanVisitado += personasEnAscensor;
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
 
                             // Envía una actualización de estado al cliente
                             string response = $"\u001b[36mEl ascensor está en el piso {pisoActual} con {personasEnAscensor} personas.\u001b[0m";
@@ -169,16 +178,35 @@ namespace WebSocketServer
 
         private static void GuardarVisitasEnExcel()
         {
-            string fileName = "visitas_pisos.xlsx"; // Nombre del archivo
-            string directory = AppDomain.CurrentDomain.BaseDirectory; // Obtiene la ruta del directorio actual
+            // Nombre del archivo de Excel
+            string fileName = "visitas_pisos.xlsx";
 
-            string filePath = Path.Combine(directory, fileName); // Combina la ruta del directorio con el nombre del archivo
+            // Directorio actual del archivo
+            string directory = AppDomain.CurrentDomain.BaseDirectory;
 
+            // Ruta completa del archivo
+            string filePath = Path.Combine(directory, fileName);
+
+            // Crea un objeto FileInfo para el archivo
             FileInfo file = new FileInfo(filePath);
-            if (file.Exists)
+
+            // Verifica si el archivo está abierto por otra aplicación
+            if (file.Exists && !IsFileLocked(file))
             {
-                file.Delete(); // Elimina el archivo existente para escribir uno nuevo
+                file.Delete();
             }
+            // Si el archivo no está abierto, intenta eliminarlo para escribir uno nuevo
+            else if (!file.Exists)
+            {
+                // Crea el archivo si no existe
+                using (var stream = file.Create()) { }
+            }
+            else
+            {
+                Console.WriteLine($"El archivo {fileName} está abierto por otra aplicación o no se puede acceder.");
+                return;
+            }
+
 
             // Crea un nuevo archivo de Excel y guarda la información de visitas a pisos en él.
             using (ExcelPackage package = new ExcelPackage(file))
@@ -208,7 +236,37 @@ namespace WebSocketServer
             // Imprime un mensaje en la consola indicando la ubicación y la fecha/hora de guardado del archivo.
             Console.WriteLine($"Datos guardados en {filePath} - {DateTime.Now}");
 
+
         }
+
+        // Método para verificar si un archivo está bloqueado por otra aplicación
+        private static bool IsFileLocked(FileInfo file)
+        {
+            FileStream stream = null;
+
+            try
+            {
+                // Intenta abrir el archivo en modo de lectura y escritura
+                stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException)
+            {
+                // Si se produce una excepción de E/S, significa que el archivo está bloqueado
+                return true;
+            }
+            finally
+            {
+                // Cierra el stream si se ha abierto correctamente
+                if (stream != null)
+                {
+                    stream.Close();
+                }
+            }
+
+            // Si el stream se abrió correctamente, el archivo no está bloqueado
+            return false;
+        }
+
     }
 
     // Clase que representa información sobre las visitas a un piso específico en el sistema de ascensor.
@@ -223,5 +281,4 @@ namespace WebSocketServer
         // Número de veces que el piso ha sido visitado.
         public int CantidadDeVisitas { get; set; }
     }
-
 }
